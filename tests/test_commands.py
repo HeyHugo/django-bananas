@@ -31,4 +31,4 @@ class CommandTests(TestCase):
 
         self.assertEqual(len(FakeSys.stdout.lines), n_urls)
 
-        call_command('show_urls')
+        call_command("show_urls")
