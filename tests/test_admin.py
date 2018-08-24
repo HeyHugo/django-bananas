@@ -48,15 +48,18 @@ class AdminTest(TestCase):
         self.custom_url = compat.reverse("admin:tests_simple_custom")
         self.special_url = compat.reverse("admin:tests_simple_special")
 
-    def create_user(self, staff=True):
+    def create_user(self, staff=True, simple_access=False):
         user = User.objects.create_user(username="user", password="test")
         if staff:
             user.is_staff = True
             user.save()
+        if simple_access:
+            perm = Permission.objects.filter(codename="can_access_simple").first()
+            user.user_permissions.add(perm)
         return user
 
-    def login_user(self, staff=True):
-        user = self.create_user(staff=staff)
+    def login_user(self, staff=True, simple_access=False):
+        user = self.create_user(staff=staff, simple_access=simple_access)
         self.client.login(username=user.username, password="test")
         return user
 
@@ -178,3 +181,19 @@ class AdminTest(TestCase):
         # No access to other views
         self.assert_unauthorized(self.custom_url)
         self.assert_unauthorized(self.detail_url)
+
+    def test_no_searchbar_disabled(self):
+        self.login_user(simple_access=True)
+        response = self.client.get(self.detail_url)
+        self.assertEqual(response.status_code, 200)
+        context = response.context
+        self.assertFalse(context['searchbar'])
+        self.assertNotIn(b'id="searchbar"', response.content)
+
+    def test_searchbar_enabled(self):
+        self.login_user(simple_access=True)
+        response = self.client.get(self.custom_url)
+        self.assertEqual(response.status_code, 200)
+        context = response.context
+        self.assertTrue(context['searchbar'])
+        self.assertIn(b'id="searchbar"', response.content)
